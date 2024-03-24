@@ -1,54 +1,8 @@
 import tkinter
-import networkx as nx
-import matplotlib.pyplot as plt
-import os
-import scipy
+
 import math
-
-
-class Reel:
-    def __init__(self, Name, ID, Tags):
-        self.name = Name
-        self.ID = ID
-        self.tags = Tags
-
-    def first_time_setup(self):
-        pass
-
-
-class User:
-    def __init__(self, ID, userName, password, liked, disliked, watchHistory, tags):
-        self.ID = ID
-        self.userName = ''
-        self.password = ''
-        self.liked = []
-        self.disliked = []
-        self.watch_history = []
-        self.tags = []
-
-    def watch_video(self, ID):
-        self.watch_history.append(ID)
-
-    def like_video(self, ID):
-        self.liked.append(ID)
-
-    def dislike_video(self, ID):
-        self.disliked.append(ID)
-
-
-class platform:
-    def __init__(self):
-        self.tags = ["Food", "Meme", "Travel", "Sports", "Music", "Politics", "Movies"]  # Just for placeholder
-        self.reels = []
-        self.users = []
-
-    def create_user(self, ID):
-        u = User(ID)
-        self.users.append(u)
-
-    def create_reel(self, Name, ID, Tags):
-        r = Reel(Name, ID, Tags)
-        self.reels.append(r)
+import random
+import custom_platform as pl
 
 
 class Graph:
@@ -114,8 +68,9 @@ def load_dataset_from_txt(file_path: str, n: int = 10000):
 
 
 def matrix_data(dataset, n, g):
-    """Create a nxn matrix and assign weights according"""
+    """Create a nxn matrix and assign weights accordingly"""
     matrix = [[0] * n for _ in range(n)]
+    matrix[1][2] = None
     for i in range(1, n + 1):
         for j in range(1, n + 1):
             if (i, j) in dataset:
@@ -159,14 +114,52 @@ def gui_main():
     mainWindow.mainloop()
 
 
+def load_platform():
+    pass
+
+
+def create_platform():
+    name = input("Enter name of platform: ")
+    user_count = max(0, int(input("Enter number of initial users: ")))
+    tag_count = max(0, int(input("Enter number of tags(0 for default tags): ")))
+    tags = None
+    if tag_count != 0:
+        tags = []
+        for i in range(tag_count):
+            tag = input(f"Enter tag {i+1}: ")
+            tags.append(tag)
+    platform_ = pl.custom_platform(name, tags)
+
+
+
 def main():
     # gui_main()
-    n = 100
+    '''
+    n = 10
     txt_file_path = "src/data/Data.txt"
     g = Graph(n)
     dataset = load_dataset_from_txt(txt_file_path, n)
     matrix = matrix_data(dataset, n, g)
+    print(f"For {n} nodes:\nMinimum Spanning Tree:")
     g.kruskal_algo()
+    '''
+    choice = 0
+    while True:
+        choice = int(input("Reel Recommendation System:\n1.Create Platform\n2.Load Platform\n3.Exit"))
+        if choice == 1:
+            create_platform()
+        elif choice == 2:
+            load_platform()
+        elif choice == 3:
+            print("Exiting!")
+            break
+        else:
+            print("Invalid choice!")
+            continue
+    instagram = pl.custom_platform("Instagram")
+    instagram.generate_platform()
+    print(instagram)
+    print(instagram.reels)
 
 
 if __name__ == '__main__':
