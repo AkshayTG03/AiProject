@@ -223,6 +223,7 @@ def main():
     # print(instagram.reels)
     instagram.recommender(1)
     print("Exiting!")
+    print("test")
 
 
 if __name__ == '__main__':
