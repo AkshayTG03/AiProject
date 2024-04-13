@@ -1,7 +1,6 @@
 import tkinter
 from typing import List
 import math
-import random
 import custom_platform as pl
 
 _platform: pl.custom_platform = object.__new__(pl.custom_platform)
@@ -186,7 +185,6 @@ def load_platform():
             else:
                 logged_in = False
                 print("Wrong username or password!")
-
 
 
 def main():
