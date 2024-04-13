@@ -1,4 +1,7 @@
 import random
+import sys
+import time
+from typing import List, Union
 
 
 def generate_normal_integers(mean, std_dev, count):
@@ -16,6 +19,8 @@ class custom_platform:
             self.ID = id_
             self.tags = tags
             self.length = length
+            self.likes = 0
+            self.dislikes = 0
 
         def __repr__(self):
             return f"ID:{self.ID} Tags: {self.tags} Length: {self.length} \n"
@@ -30,6 +35,10 @@ class custom_platform:
             self.username = username if username is not None else str(ID)
             self.password = password if password is not None else str(ID)
             self.ID = ID
+
+        def __repr__(self):
+            return (f"User:{self.ID} Friends: {self.friends} \n    Watch History:{self.watch_history}\n    "
+                    f"Liked: {self.liked}\n")
 
         def watch_video(self, ID):
             self.watch_history.append(ID)
@@ -52,11 +61,12 @@ class custom_platform:
         else:
             self.tags = tags
         self.name = name
-        self.reels = []
-        self.users = []
+        self.reels: List[custom_platform.Reel] = []
+        self.users: List[custom_platform.User] = []
 
     def __str__(self):
-        return ''.join(str(reel) for reel in self.reels)
+        # return ''.join(str(reel) for reel in self.reels)
+        return f"Platform:\nName:{self.name}\nTags:{self.tags}\n"
 
     def create_user(self, ID):
         # TODO Get info from console and create user
@@ -68,17 +78,90 @@ class custom_platform:
         r = self.Reel(Name, ID, Tags)
         self.reels.append(r)
 
-    def generate_platform(self, user_count: int = 50, reel_count: int = 200, peruser: int = 10, devcount: int = 40,
-                          tagcount: int = 3, friend_count: int = 10):
-        mean = peruser
+    def create_user_matrix(self):
+        user_tag_matrix = [[0.0 for _ in range(len(self.tags))] for _ in range(len(self.users))]
+        for i, user in enumerate(self.users):
+            for reel in user.watch_history:
+                for j, tag in enumerate(self.tags):
+                    for vid_tag in reel.tags:
+                        if tag == vid_tag:
+                            if reel in user.liked:
+                                # Liked
+                                user_tag_matrix[i][j] += 1
+                                break
+                            elif reel in user.disliked:
+                                # Disliked
+                                user_tag_matrix[i][j] -= 1
+                                break
+                            else:
+                                # Just Viewed
+                                user_tag_matrix[i][j] += 0.25
+                                break
+        return user_tag_matrix
+
+    def create_reel_matrix(self):
+        reel_matrix = [[0 for _ in range(len(self.tags))] for _ in range(len(self.reels))]
+        for i, reel in enumerate(self.reels):
+            for j, tag in enumerate(self.tags):
+                for reel_tag in reel.tags:
+                    if tag == reel_tag:
+                        reel_matrix[i][j] += 1
+        return reel_matrix
+
+    def matrix_factorization(self):
+        print("Beginning User Factorization!")
+        start_time = time.time()
+        user_matrix = self.create_user_matrix()
+        print(f"Finished User Factorization in {(time.time()-start_time)*1000:.2f} milliseconds")
+        # print("User Matrix:\n" + str(user_matrix))
+        print("Beginning Reel Factorization!")
+        start_time = time.time()
+        reel_matrix = self.create_reel_matrix()
+        print(f"Finished Reel Factorization in {(time.time() - start_time)*1000:.2f} milliseconds")
+        # print("Reel Matrix:\n" + str(reel_matrix))
+        print("Beginning Matrix Factorization!")
+        start_time = time.time()
+        user_length = len(self.users)
+        reel_length = len(self.reels)
+        resultant_matrix = [[0.0 for _ in range(len(self.reels))] for _ in range(len(self.users))]
+        for i in range(len(self.users)):
+            progress = round(((i+1)/user_length)*100, 2)
+            time_per_progress = (time.time()-start_time)/progress
+            eta = (100-progress)*time_per_progress
+            sys.stdout.write(f'\rProgress: {progress}% ETA:{eta:.0f}s')
+            sys.stdout.flush()
+            for j in range(len(self.reels)):
+                for k in range(len(self.tags)):
+                    resultant_matrix[i][j] += user_matrix[i][k] * reel_matrix[j][k]
+        print(f"\nFinished Matrix Factorization in {(time.time() - start_time) * 1000:.2f} milliseconds")
+        return resultant_matrix
+
+    def recommender(self, id_: int):
+        matrix = self.matrix_factorization()
+        u: Union[custom_platform.User, None] = None
+        for user in self.users:
+            if user.ID == id_:
+                u = user
+        user_row = matrix[id_-1]
+        view_history = u.watch_history
+        unseen_row = [user_row[i] for i in range(len(user_row)) if i not in view_history]
+        vid_ids = [i for i in range(len(user_row)) if i not in view_history]
+        unseen_row, vid_ids = zip(*sorted(zip(unseen_row, vid_ids), key=lambda x: x[0], reverse=True))
+        print(f"Here are the recommended videos and their relevancy:")
+        print(' '.join([f'[{vid}:{row}]' for row, vid in zip(unseen_row[:10], vid_ids[:10])]))
+        pass
+
+    def generate_platform(self, user_count: int = 500, reel_count: int = 20000, per_user: int = 10, dev_count: int = 40,
+                          tag_count: int = 3, friend_count: int = 10):
+        mean = per_user
         standard_deviation = 3
-        user_normal_integers = generate_normal_integers(mean, standard_deviation, devcount)
+        user_normal_integers = generate_normal_integers(mean, standard_deviation, dev_count)
         user_normal_integers = [max(1, i) for i in user_normal_integers]
-        friend_normal_integers = generate_normal_integers(friend_count, 3, devcount)
-        friend_normal_integers = [max(1, i) for i in friend_normal_integers]
-        tag_normal_integers = generate_normal_integers(tagcount, 1, 10)
+        friend_normal_integers = generate_normal_integers(friend_count, 3, dev_count)
+        friend_normal_integers = [max(0, i) for i in friend_normal_integers]
+        tag_normal_integers = generate_normal_integers(tag_count, 1, 10)
         tag_normal_integers = [max(1, i) for i in tag_normal_integers]
-        length_normal_integers = generate_normal_integers(30, 5, 40)
+        length_normal_integers = generate_normal_integers(30, 15, 40)
         length_normal_integers = [max(1, i) for i in length_normal_integers]
 
         # Generate reels
