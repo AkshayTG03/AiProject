@@ -32,22 +32,29 @@ class custom_platform:
             self.disliked = disliked if disliked is not None else []
             self.liked = liked if liked is not None else []
             self.watch_history = watch_history if watch_history is not None else []
-            self.username = username if username is not None else str(ID)
-            self.password = password if password is not None else str(ID)
+            self.username = str(username) if username is not None else str(ID)
+            self.password = str(password) if password is not None else str(ID)
             self.ID = ID
 
         def __repr__(self):
             return (f"User:{self.ID} Friends: {self.friends} \n    Watch History:{self.watch_history}\n    "
                     f"Liked: {self.liked}\n")
 
-        def watch_video(self, ID):
-            self.watch_history.append(ID)
+        def watch_video(self, reel: 'custom_platform.Reel'):
+            if reel not in self.watch_history:
+                self.watch_history.append(reel)
 
-        def like_video(self, ID):
-            self.liked.append(ID)
+        def like_video(self, reel: 'custom_platform.Reel'):
+            self.liked.append(reel)
+            self.watch_video(reel)
+            reel.likes += 1
+            print(self)
 
-        def dislike_video(self, ID):
-            self.disliked.append(ID)
+        def dislike_video(self, reel: 'custom_platform.Reel'):
+            self.disliked.append(reel)
+            self.watch_video(reel)
+            reel.dislikes += 1
+            print(self)
 
         def add_friend(self, ID):
             self.friends.append(ID)
@@ -63,6 +70,7 @@ class custom_platform:
         self.name = name
         self.reels: List[custom_platform.Reel] = []
         self.users: List[custom_platform.User] = []
+        self.matrix: List[List[float]] = []
 
     def __str__(self):
         # return ''.join(str(reel) for reel in self.reels)
@@ -112,12 +120,12 @@ class custom_platform:
         print("Beginning User Factorization!")
         start_time = time.time()
         user_matrix = self.create_user_matrix()
-        print(f"Finished User Factorization in {(time.time()-start_time)*1000:.2f} milliseconds")
+        print(f"Finished User Factorization in {(time.time() - start_time) * 1000:.2f} milliseconds")
         # print("User Matrix:\n" + str(user_matrix))
         print("Beginning Reel Factorization!")
         start_time = time.time()
         reel_matrix = self.create_reel_matrix()
-        print(f"Finished Reel Factorization in {(time.time() - start_time)*1000:.2f} milliseconds")
+        print(f"Finished Reel Factorization in {(time.time() - start_time) * 1000:.2f} milliseconds")
         # print("Reel Matrix:\n" + str(reel_matrix))
         print("Beginning Matrix Factorization!")
         start_time = time.time()
@@ -125,9 +133,9 @@ class custom_platform:
         reel_length = len(self.reels)
         resultant_matrix = [[0.0 for _ in range(len(self.reels))] for _ in range(len(self.users))]
         for i in range(len(self.users)):
-            progress = round(((i+1)/user_length)*100, 2)
-            time_per_progress = (time.time()-start_time)/progress
-            eta = (100-progress)*time_per_progress
+            progress = round(((i + 1) / user_length) * 100, 2)
+            time_per_progress = (time.time() - start_time) / progress
+            eta = (100 - progress) * time_per_progress
             sys.stdout.write(f'\rProgress: {progress}% ETA:{eta:.0f}s')
             sys.stdout.flush()
             for j in range(len(self.reels)):
@@ -136,22 +144,37 @@ class custom_platform:
         print(f"\nFinished Matrix Factorization in {(time.time() - start_time) * 1000:.2f} milliseconds")
         return resultant_matrix
 
-    def recommender(self, id_: int):
-        matrix = self.matrix_factorization()
+    def recommender(self, id_: int, n: int, refresh=0):
+        if refresh == 1:
+            self.matrix = self.matrix_factorization()
+        matrix = self.matrix
         u: Union[custom_platform.User, None] = None
         for user in self.users:
             if user.ID == id_:
                 u = user
-        user_row = matrix[id_-1]
+        user_row = matrix[id_ - 1]
         view_history = u.watch_history
         unseen_row = [user_row[i] for i in range(len(user_row)) if i not in view_history]
         vid_ids = [i for i in range(len(user_row)) if i not in view_history]
         unseen_row, vid_ids = zip(*sorted(zip(unseen_row, vid_ids), key=lambda x: x[0], reverse=True))
-        print(f"Here are the recommended videos and their relevancy:")
-        print(' '.join([f'[{vid}:{row}]' for row, vid in zip(unseen_row[:10], vid_ids[:10])]))
-        pass
+        print(f"Here are the recommended videos and their relevancy for user {id_}:")
+        print(' '.join([f'[{vid}:{row}]' for row, vid in zip(unseen_row[:n], vid_ids[:n])]))
+        return unseen_row[:n], vid_ids[:n]
 
-    def generate_platform(self, user_count: int = 500, reel_count: int = 20000, per_user: int = 10, dev_count: int = 40,
+    '''
+    def check_relevancy(self, reel1, reel2):
+        for i in reel2.tags:
+            for j in reel2.tags:
+                if i == j:
+                    match +=1
+        return match/max(len(reel1.tags), len(reel2.tags))
+    def start(self):
+        for i in self.reels:
+            for j in self.reels[i:]:
+                weight = check_relevancy()
+                g.add_edge(i.ID,j.ID, weight)
+    '''
+    def generate_platform(self, user_count: int = 200, reel_count: int = 5000, per_user: int = 10, dev_count: int = 40,
                           tag_count: int = 3, friend_count: int = 10):
         mean = per_user
         standard_deviation = 3
@@ -192,3 +215,4 @@ class custom_platform:
             disliked_reels = random.sample(remaining_reels, number_dislikes)
             u = self.User(i + 1, i + 1, i + 1, liked_reels, disliked_reels, reels, friends)
             self.users.append(u)
+        self.matrix = self.matrix_factorization()
